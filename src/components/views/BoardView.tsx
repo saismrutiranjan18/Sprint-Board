@@ -1,45 +1,56 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { IssueStatus, Issue } from '../../types';
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import { IssueCard } from '../IssueCard';
 import { DroppableColumn } from '../DroppableColumn';
+import { IssueDetailModal } from '../IssueDetailModal';
 
 export const BoardView: React.FC = () => {
   const { issues, sprints, updateIssue, users } = useApp();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  // Add activation distance so normal clicks are not treated as drags
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
   const activeSprint = sprints.find(s => s.status === 'active');
 
-  const statuses: { id: IssueStatus; label: string; color: string }[] = [
-    { id: 'todo', label: 'TO DO', color: 'gray' },
-    { id: 'in-progress', label: 'IN PROGRESS', color: 'blue' },
-    { id: 'in-review', label: 'IN REVIEW', color: 'purple' },
-    { id: 'done', label: 'DONE ✓', color: 'green' },
+  const statuses: { id: IssueStatus; label: string }[] = [
+    { id: 'todo', label: 'TO DO' },
+    { id: 'in-progress', label: 'IN PROGRESS' },
+    { id: 'in-review', label: 'IN REVIEW' },
+    { id: 'done', label: 'DONE ✓' },
   ];
 
-  const getIssuesByStatus = (status: IssueStatus) => {
-    return issues.filter(issue =>
-      issue.status === status &&
-      (!activeSprint || issue.sprintId === activeSprint.id)
+  const getIssuesByStatus = (status: IssueStatus) =>
+    issues.filter(
+      issue =>
+        issue.status === status &&
+        (!activeSprint || issue.sprintId === activeSprint.id)
     );
-  };
 
-  const handleDragStart = (event: DragEndEvent) => {
+  const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-
     if (!over) return;
 
     const issueId = active.id as string;
     const newStatus = over.id as IssueStatus;
+    const currentIssue = issues.find(i => i.id === issueId);
 
-    updateIssue(issueId, { status: newStatus });
+    // Only update if status actually changed
+    if (currentIssue && currentIssue.status !== newStatus) {
+      updateIssue(issueId, { status: newStatus });
+    }
   };
 
   const activeIssue = activeId ? issues.find(i => i.id === activeId) : null;
@@ -69,13 +80,18 @@ export const BoardView: React.FC = () => {
           {statuses.map(status => {
             const statusIssues = getIssuesByStatus(status.id);
             return (
-              <DroppableColumn key={status.id} id={status.id} title={status.label} count={statusIssues.length}>
+              <DroppableColumn
+                key={status.id}
+                id={status.id}
+                title={status.label}
+                count={statusIssues.length}
+              >
                 <div className="space-y-3">
                   {statusIssues.map(issue => (
                     <IssueCard
                       key={issue.id}
                       issue={issue}
-                      onClick={() => {}}
+                      onClick={() => setSelectedIssue(issue)}
                       assignee={users.find(u => u.id === issue.assigneeId)}
                     />
                   ))}
@@ -87,7 +103,7 @@ export const BoardView: React.FC = () => {
 
         <DragOverlay>
           {activeIssue && (
-            <div className="opacity-80">
+            <div className="opacity-80 rotate-2">
               <IssueCard
                 issue={activeIssue}
                 onClick={() => {}}
@@ -97,6 +113,14 @@ export const BoardView: React.FC = () => {
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Issue Detail Modal */}
+      {selectedIssue && (
+        <IssueDetailModal
+          issue={selectedIssue}
+          onClose={() => setSelectedIssue(null)}
+        />
+      )}
     </div>
   );
 };
