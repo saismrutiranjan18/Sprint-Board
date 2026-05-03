@@ -1,6 +1,6 @@
-# 🎯 Complete JIRA Clone - Full Feature List
+#  Complete JIRA Clone - Full Feature List
 
-## ✅ **ALL REQUIREMENTS MET - FULLY FUNCTIONAL**
+## **ALL REQUIREMENTS MET - FULLY FUNCTIONAL**
 
 ### **1. Create Sprint** ✓
 - Admins can create sprints from the Backlog view
@@ -47,9 +47,9 @@
 
 ---
 
-## 🚀 **BONUS FEATURES ADDED**
+##  **BONUS FEATURES ADDED**
 
-### **📊 Activity Feed/Notifications**
+### ** Activity Feed/Notifications**
 - Real-time activity log showing "who did what when"
 - Tracks all actions: issue creation, status changes, comments, assignments
 - User-specific activity filtering

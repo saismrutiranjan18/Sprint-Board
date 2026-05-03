@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Issue, Sprint, Project, Invitation, AppState, Activity, WorkLog, IssueLink, Attachment } from '../types';
+import {
+  User, Issue, Sprint, Project, Invitation, AppState, Activity, IssueLink,
+} from '../types';
 import * as db from '../services/database';
 
 interface AppContextType {
@@ -9,15 +11,15 @@ interface AppContextType {
   login: (email: string, password: string) => boolean;
   signup: (name: string, email: string, password: string) => boolean;
   logout: () => void;
-  
+
   // Project
   project: Project;
   updateProject: (updates: Partial<Project>) => void;
-  
+
   // Users
   users: User[];
   inviteUser: (email: string, role: 'admin' | 'member') => void;
-  
+
   // Issues
   issues: Issue[];
   addIssue: (issue: Omit<Issue, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -29,7 +31,7 @@ interface AppContextType {
   removeIssueLink: (issueId: string, linkId: string) => void;
   addAttachment: (issueId: string, file: File) => Promise<void>;
   removeAttachment: (issueId: string, attachmentId: string) => void;
-  
+
   // Sprints
   sprints: Sprint[];
   addSprint: (sprint: Omit<Sprint, 'id' | 'createdAt'>) => void;
@@ -37,13 +39,13 @@ interface AppContextType {
   deleteSprint: (sprintId: string) => void;
   startSprint: (sprintId: string) => void;
   completeSprint: (sprintId: string) => void;
-  
+
   // Invitations
   invitations: Invitation[];
-  
+
   // Activities
   activities: Activity[];
-  
+
   // Utility
   refreshData: () => void;
 }
@@ -55,35 +57,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [appState, setAppState] = useState<AppState>(() => db.initializeDatabase());
 
   useEffect(() => {
-    // Check if user is already logged in
     const user = db.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-    }
+    if (user) setCurrentUser(user);
   }, []);
 
-  const refreshData = () => {
-    setAppState(db.getData());
-  };
+  const refreshData = () => setAppState(db.getData());
+
+  // ── Auth ────────────────────────────────────────────────────────────────
 
   const login = (email: string, password: string): boolean => {
     const user = db.login(email, password);
-    if (user) {
-      setCurrentUser(user);
-      refreshData();
-      return true;
-    }
-    return false;
+    if (!user) return false;
+    setCurrentUser(user);
+    refreshData();
+    return true;
   };
 
   const signup = (name: string, email: string, password: string): boolean => {
     const user = db.signup(name, email, password);
-    if (user) {
-      setCurrentUser(user);
-      refreshData();
-      return true;
-    }
-    return false;
+    if (!user) return false;
+    setCurrentUser(user);
+    refreshData();
+    return true;
   };
 
   const logout = () => {
@@ -91,14 +86,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentUser(null);
   };
 
+  // ── Project ──────────────────────────────────────────────────────────────
+
   const updateProject = (updates: Partial<Project>) => {
     db.updateProject(updates);
     refreshData();
   };
 
-  const inviteUser = (email: string, role: 'admin' | 'member') => {
-    if (!currentUser || currentUser.role !== 'admin') return;
+  // ── Users ────────────────────────────────────────────────────────────────
 
+  const inviteUser = (email: string, role: 'admin' | 'member') => {
+    if (currentUser?.role !== 'admin') return;
+    const { project } = db.getData();
     const invitation: Invitation = {
       id: `inv-${Date.now()}`,
       email,
@@ -106,78 +105,74 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       invitedBy: currentUser.id,
       status: 'pending',
       createdAt: new Date().toISOString(),
-      projectId: appState.project.id,
+      projectId: project.id,
     };
-
     db.addInvitation(invitation);
     refreshData();
   };
 
+  // ── Issues ───────────────────────────────────────────────────────────────
+
   const addIssue = (issueData: Omit<Issue, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentUser) return;
     const issue: Issue = {
       ...issueData,
       id: `issue-${Date.now()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-
     db.addIssue(issue);
-    
-    // Update user's assigned issues count
+
+    // Update assignee counter using fresh data (avoid stale closure)
     if (issue.assigneeId) {
-      const assignee = appState.users.find(u => u.id === issue.assigneeId);
-      if (assignee) {
-        db.updateUser(assignee.id, { assignedIssues: assignee.assignedIssues + 1 });
-      }
+      const fresh = db.getData();
+      const assignee = fresh.users.find(u => u.id === issue.assigneeId);
+      if (assignee) db.updateUser(assignee.id, { assignedIssues: assignee.assignedIssues + 1 });
     }
-    
     refreshData();
   };
 
   const updateIssue = (issueId: string, updates: Partial<Issue>) => {
-    const oldIssue = appState.issues.find(i => i.id === issueId);
-    
+    // Always read fresh data so we never operate on stale state
+    const fresh = db.getData();
+    const oldIssue = fresh.issues.find(i => i.id === issueId);
+
     db.updateIssue(issueId, updates);
-    
-    // Update assignee counts if assignee changed
-    if (updates.assigneeId && oldIssue && updates.assigneeId !== oldIssue.assigneeId) {
-      if (oldIssue.assigneeId) {
-        const oldAssignee = appState.users.find(u => u.id === oldIssue.assigneeId);
-        if (oldAssignee) {
-          db.updateUser(oldAssignee.id, { assignedIssues: Math.max(0, oldAssignee.assignedIssues - 1) });
+
+    if (oldIssue) {
+      // Assignee changed → update counters
+      if (updates.assigneeId !== undefined && updates.assigneeId !== oldIssue.assigneeId) {
+        if (oldIssue.assigneeId) {
+          const prev = fresh.users.find(u => u.id === oldIssue.assigneeId);
+          if (prev) db.updateUser(prev.id, { assignedIssues: Math.max(0, prev.assignedIssues - 1) });
+        }
+        if (updates.assigneeId) {
+          const next = fresh.users.find(u => u.id === updates.assigneeId);
+          if (next) db.updateUser(next.id, { assignedIssues: next.assignedIssues + 1 });
         }
       }
-      
-      const newAssignee = appState.users.find(u => u.id === updates.assigneeId);
-      if (newAssignee) {
-        db.updateUser(newAssignee.id, { assignedIssues: newAssignee.assignedIssues + 1 });
+
+      // Completed for the first time → increment completedIssues
+      if (updates.status === 'done' && oldIssue.status !== 'done' && oldIssue.assigneeId) {
+        const assignee = fresh.users.find(u => u.id === oldIssue.assigneeId);
+        if (assignee) db.updateUser(assignee.id, { completedIssues: assignee.completedIssues + 1 });
       }
     }
-    
-    // Update completed count if status changed to done
-    if (updates.status === 'done' && oldIssue && oldIssue.status !== 'done' && oldIssue.assigneeId) {
-      const assignee = appState.users.find(u => u.id === oldIssue.assigneeId);
-      if (assignee) {
-        db.updateUser(assignee.id, { completedIssues: assignee.completedIssues + 1 });
-      }
-    }
-    
     refreshData();
   };
 
   const deleteIssue = (issueId: string) => {
-    const issue = appState.issues.find(i => i.id === issueId);
-    
+    const fresh = db.getData();
+    const issue = fresh.issues.find(i => i.id === issueId);
     if (issue?.assigneeId) {
-      const assignee = appState.users.find(u => u.id === issue.assigneeId);
-      if (assignee) {
-        db.updateUser(assignee.id, { assignedIssues: Math.max(0, assignee.assignedIssues - 1) });
-      }
+      const assignee = fresh.users.find(u => u.id === issue.assigneeId);
+      if (assignee) db.updateUser(assignee.id, { assignedIssues: Math.max(0, assignee.assignedIssues - 1) });
     }
-    
     db.deleteIssue(issueId);
     refreshData();
   };
+
+  // ── Sprints ──────────────────────────────────────────────────────────────
 
   const addSprint = (sprintData: Omit<Sprint, 'id' | 'createdAt'>) => {
     const sprint: Sprint = {
@@ -185,7 +180,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: `sprint-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
-
     db.addSprint(sprint);
     refreshData();
   };
@@ -210,13 +204,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     refreshData();
   };
 
+  // ── Collaboration ────────────────────────────────────────────────────────
+
   const addComment = (issueId: string, text: string) => {
-    db.addComment(issueId, currentUser!.id, text);
+    if (!currentUser) return;
+    db.addComment(issueId, currentUser.id, text);
     refreshData();
   };
 
   const addWorkLog = (issueId: string, timeSpent: number, description: string) => {
-    db.addWorkLog(issueId, currentUser!.id, timeSpent, description);
+    if (!currentUser) return;
+    db.addWorkLog(issueId, currentUser.id, timeSpent, description);
     refreshData();
   };
 
@@ -231,7 +229,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addAttachment = async (issueId: string, file: File) => {
-    await db.addAttachment(issueId, currentUser!.id, file);
+    if (!currentUser) return;
+    await db.addAttachment(issueId, currentUser.id, file);
     refreshData();
   };
 
@@ -269,7 +268,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         startSprint,
         completeSprint,
         invitations: appState.invitations,
-        activities: appState.activities || [],
+        activities: appState.activities ?? [],
         refreshData,
       }}
     >
@@ -278,10 +277,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   );
 };
 
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
+export const useApp = (): AppContextType => {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within an AppProvider');
+  return ctx;
 };

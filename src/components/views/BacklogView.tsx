@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { CreateSprintModal } from '../CreateSprintModal';
 import { CreateIssueModal } from '../CreateIssueModal';
 import { IssueDetailModal } from '../IssueDetailModal';
-import { Issue } from '../../types';
+import { Issue, IssueStatus, IssueType, IssuePriority, SprintStatus } from '../../types';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 
 export const BacklogView: React.FC = () => {
@@ -13,8 +13,15 @@ export const BacklogView: React.FC = () => {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [collapsedSprints, setCollapsedSprints] = useState<Set<string>>(new Set());
 
-  const backlogIssues = issues.filter(i => !i.sprintId || i.status === 'backlog');
   const isAdmin = currentUser?.role === 'admin';
+
+  /**
+   * Backlog = issues with NO sprint assignment.
+   * Issues inside a sprint that got reset to "backlog" status are already
+   * handled by completeSprint (their sprintId is cleared), so the only
+   * extra guard needed is `!i.sprintId`.
+   */
+  const backlogIssues = issues.filter(i => !i.sprintId);
 
   const toggleSprint = (sprintId: string) => {
     setCollapsedSprints(prev => {
@@ -30,51 +37,46 @@ export const BacklogView: React.FC = () => {
     completed: 'bg-gray-100 text-gray-600',
   };
 
-  const issueTypeIcons: Record<string, string> = {
+  const issueTypeIcons: Record<IssueType, string> = {
     story: '📖', task: '✅', bug: '🐛', epic: '🎯',
   };
 
-  const priorityDot: Record<string, string> = {
-    lowest: 'bg-gray-300', low: 'bg-blue-400', medium: 'bg-yellow-400',
-    high: 'bg-orange-500', highest: 'bg-red-500',
+  const priorityDot: Record<IssuePriority, string> = {
+    lowest: 'bg-gray-300',
+    low: 'bg-blue-400',
+    medium: 'bg-yellow-400',
+    high: 'bg-orange-500',
+    highest: 'bg-red-500',
   };
 
-  const handleCreateSprintSubmit = (sprintData: {
-    name: string;
-    goal: string;
-    startDate: string;
-    endDate: string;
-    status: import('../../types').SprintStatus;
-  }) => {
-    addSprint(sprintData);
-    setIsCreateSprintOpen(false);
+  const issueStatusBadge = (status: IssueStatus) => {
+    const map: Record<IssueStatus, string> = {
+      done: 'bg-green-100 text-green-700',
+      'in-progress': 'bg-blue-100 text-blue-700',
+      'in-review': 'bg-purple-100 text-purple-700',
+      todo: 'bg-gray-100 text-gray-600',
+      backlog: 'bg-gray-100 text-gray-500',
+    };
+    return map[status] ?? 'bg-gray-100 text-gray-600';
   };
+
+  const handleCreateSprintSubmit = (data: {
+    name: string; goal: string; startDate: string; endDate: string; status: SprintStatus;
+  }) => { addSprint(data); setIsCreateSprintOpen(false); };
 
   const handleCreateIssueSubmit = (issueData: {
-    key: string;
-    title: string;
-    description: string;
-    type: import('../../types').IssueType;
-    priority: import('../../types').IssuePriority;
-    status: import('../../types').IssueStatus;
-    assigneeId?: string;
-    sprintId?: string;
-    labels: string[];
-    estimatedHours?: number;
+    key: string; title: string; description: string;
+    type: IssueType; priority: IssuePriority; status: IssueStatus;
+    assigneeId?: string; sprintId?: string; labels: string[]; estimatedHours?: number;
   }) => {
-    addIssue({
-      ...issueData,
-      reporterId: currentUser!.id,
-      comments: [],
-      workLogs: [],
-      links: [],
-      attachments: [],
-    });
+    if (!currentUser) return;
+    addIssue({ ...issueData, reporterId: currentUser.id, comments: [], workLogs: [], links: [], attachments: [] });
     setIsCreateIssueOpen(false);
   };
 
   return (
     <div className="space-y-6">
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-[#172B4D]">Backlog</h2>
         <div className="flex gap-2">
@@ -82,22 +84,20 @@ export const BacklogView: React.FC = () => {
             onClick={() => setIsCreateIssueOpen(true)}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm"
           >
-            <Plus className="w-4 h-4" />
-            Create Issue
+            <Plus className="w-4 h-4" /> Create Issue
           </button>
           {isAdmin && (
             <button
               onClick={() => setIsCreateSprintOpen(true)}
               className="px-4 py-2 bg-[#0052CC] text-white rounded-lg hover:bg-[#0065FF] transition-colors flex items-center gap-2 text-sm"
             >
-              <Plus className="w-4 h-4" />
-              Create Sprint
+              <Plus className="w-4 h-4" /> Create Sprint
             </button>
           )}
         </div>
       </div>
 
-      {/* All Sprints */}
+      {/* Sprint sections */}
       {sprints.map(sprint => {
         const sprintIssues = issues.filter(i => i.sprintId === sprint.id);
         const completedCount = sprintIssues.filter(i => i.status === 'done').length;
@@ -111,9 +111,7 @@ export const BacklogView: React.FC = () => {
                   onClick={() => toggleSprint(sprint.id)}
                   className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                 >
-                  {isCollapsed
-                    ? <ChevronRight className="w-4 h-4" />
-                    : <ChevronDown className="w-4 h-4" />}
+                  {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -128,9 +126,7 @@ export const BacklogView: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                <span className="text-xs text-gray-500">
-                  {completedCount}/{sprintIssues.length} done
-                </span>
+                <span className="text-xs text-gray-500">{completedCount}/{sprintIssues.length} done</span>
                 {sprint.status === 'planned' && isAdmin && (
                   <button
                     onClick={() => startSprint(sprint.id)}
@@ -153,30 +149,19 @@ export const BacklogView: React.FC = () => {
             {!isCollapsed && (
               <div className="border-t border-gray-100">
                 {sprintIssues.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-6">No issues in this sprint.</p>
+                  <p className="text-sm text-gray-400 text-center py-6">No issues in this sprint yet.</p>
                 ) : (
                   <div className="divide-y divide-gray-50">
                     {sprintIssues.map(issue => (
-                      <div
+                      <IssueRow
                         key={issue.id}
+                        issue={issue}
+                        typeIcon={issueTypeIcons[issue.type]}
+                        priorityDot={priorityDot[issue.priority]}
+                        statusBadge={issueStatusBadge(issue.status)}
+                        showStatus
                         onClick={() => setSelectedIssue(issue)}
-                        className="px-4 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center gap-3 group"
-                      >
-                        <span className="text-sm flex-shrink-0">{issueTypeIcons[issue.type] ?? '📋'}</span>
-                        <span className="text-xs text-gray-400 font-medium w-20 flex-shrink-0">{issue.key}</span>
-                        <span className="text-sm text-gray-800 flex-1 truncate group-hover:text-[#0052CC]">{issue.title}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className={`w-2 h-2 rounded-full ${priorityDot[issue.priority] ?? 'bg-gray-300'}`} title={issue.priority} />
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            issue.status === 'done' ? 'bg-green-100 text-green-700'
-                            : issue.status === 'in-progress' ? 'bg-blue-100 text-blue-700'
-                            : issue.status === 'in-review' ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {issue.status}
-                          </span>
-                        </div>
-                      </div>
+                      />
                     ))}
                   </div>
                 )}
@@ -186,7 +171,7 @@ export const BacklogView: React.FC = () => {
         );
       })}
 
-      {/* Backlog Issues */}
+      {/* Backlog section */}
       <div className="bg-white rounded-lg border border-gray-200">
         <div className="p-4 border-b border-gray-100">
           <h3 className="font-semibold text-gray-900">Backlog ({backlogIssues.length})</h3>
@@ -198,19 +183,16 @@ export const BacklogView: React.FC = () => {
         ) : (
           <div className="divide-y divide-gray-50">
             {backlogIssues.map(issue => (
-              <div
+              <IssueRow
                 key={issue.id}
+                issue={issue}
+                typeIcon={issueTypeIcons[issue.type]}
+                priorityDot={priorityDot[issue.priority]}
+                statusBadge=""
+                showStatus={false}
+                showType
                 onClick={() => setSelectedIssue(issue)}
-                className="px-4 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center gap-3 group"
-              >
-                <span className="text-sm flex-shrink-0">{issueTypeIcons[issue.type] ?? '📋'}</span>
-                <span className="text-xs text-gray-400 font-medium w-20 flex-shrink-0">{issue.key}</span>
-                <span className="text-sm text-gray-800 flex-1 truncate group-hover:text-[#0052CC]">{issue.title}</span>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className={`w-2 h-2 rounded-full ${priorityDot[issue.priority] ?? 'bg-gray-300'}`} title={issue.priority} />
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{issue.type}</span>
-                </div>
-              </div>
+              />
             ))}
           </div>
         )}
@@ -224,7 +206,6 @@ export const BacklogView: React.FC = () => {
           onSubmit={handleCreateSprintSubmit}
         />
       )}
-
       {isCreateIssueOpen && (
         <CreateIssueModal
           isOpen={isCreateIssueOpen}
@@ -232,13 +213,43 @@ export const BacklogView: React.FC = () => {
           onSubmit={handleCreateIssueSubmit}
         />
       )}
-
       {selectedIssue && (
-        <IssueDetailModal
-          issue={selectedIssue}
-          onClose={() => setSelectedIssue(null)}
-        />
+        <IssueDetailModal issue={selectedIssue} onClose={() => setSelectedIssue(null)} />
       )}
     </div>
   );
 };
+
+// ── Shared row component ─────────────────────────────────────────────────────
+
+interface IssueRowProps {
+  issue: Issue;
+  typeIcon: string;
+  priorityDot: string;
+  statusBadge: string;
+  showStatus?: boolean;
+  showType?: boolean;
+  onClick: () => void;
+}
+
+const IssueRow: React.FC<IssueRowProps> = ({
+  issue, typeIcon, priorityDot, statusBadge, showStatus = false, showType = false, onClick,
+}) => (
+  <div
+    onClick={onClick}
+    className="px-4 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center gap-3 group"
+  >
+    <span className="text-sm flex-shrink-0">{typeIcon}</span>
+    <span className="text-xs text-gray-400 font-medium w-20 flex-shrink-0">{issue.key}</span>
+    <span className="text-sm text-gray-800 flex-1 truncate group-hover:text-[#0052CC]">{issue.title}</span>
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <div className={`w-2 h-2 rounded-full ${priorityDot}`} title={issue.priority} />
+      {showStatus && (
+        <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge}`}>{issue.status}</span>
+      )}
+      {showType && (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{issue.type}</span>
+      )}
+    </div>
+  </div>
+);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { IssueType, IssuePriority, IssueStatus } from '../types';
+import { X } from 'lucide-react';
 
 interface CreateIssueModalProps {
   isOpen: boolean;
@@ -19,140 +20,149 @@ interface CreateIssueModalProps {
   }) => void;
 }
 
-export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
-  isOpen,
-  onClose,
-  onSubmit,
-}) => {
-  const { project, users, issues, sprints } = useApp();
+const EMPTY_FORM = {
+  type: 'task' as IssueType,
+  priority: 'medium' as IssuePriority,
+  status: 'todo' as IssueStatus,
+  title: '',
+  description: '',
+  assigneeId: '',
+  labels: '',
+  estimatedHours: '',
+};
 
-  const [formData, setFormData] = useState({
-    type: 'task' as IssueType,
-    priority: 'medium' as IssuePriority,
-    status: 'todo' as IssueStatus,
-    title: '',
-    description: '',
-    assigneeId: '',
-    labels: '',
-    estimatedHours: '',
-  });
+export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const { project, users, issues, sprints } = useApp();
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [titleError, setTitleError] = useState(false);
 
   if (!isOpen) return null;
 
+  /** Generate next key by finding the highest existing key number */
+  const nextKey = (): string => {
+    const prefix = `${project.key}-`;
+    const maxNum = issues.reduce((max, i) => {
+      if (!i.key.startsWith(prefix)) return max;
+      const num = parseInt(i.key.slice(prefix.length), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    return `${prefix}${maxNum + 1}`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.title.trim()) {
-      alert('Please enter a title');
-      return;
-    }
-
-    const issueCount = issues.length + 1;
-    const issueKey = `${project.key}-${issueCount}`;
+    if (!formData.title.trim()) { setTitleError(true); return; }
 
     const activeSprint = sprints.find(s => s.status === 'active');
     const sprintId = formData.status !== 'backlog' && activeSprint ? activeSprint.id : undefined;
 
     onSubmit({
-      key: issueKey,
-      title: formData.title,
-      description: formData.description,
+      key: nextKey(),
+      title: formData.title.trim(),
+      description: formData.description.trim(),
       type: formData.type,
       priority: formData.priority,
       status: formData.status,
       assigneeId: formData.assigneeId || undefined,
       sprintId,
-      labels: formData.labels ? formData.labels.split(',').map(l => l.trim()).filter(l => l) : [],
+      labels: formData.labels
+        ? formData.labels.split(',').map(l => l.trim()).filter(Boolean)
+        : [],
       estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
     });
 
-    setFormData({
-      type: 'task',
-      priority: 'medium',
-      status: 'todo',
-      title: '',
-      description: '',
-      assigneeId: '',
-      labels: '',
-      estimatedHours: '',
-    });
+    setFormData(EMPTY_FORM);
+    setTitleError(false);
+    onClose();
+  };
+
+  const handleClose = () => {
+    setFormData(EMPTY_FORM);
+    setTitleError(false);
     onClose();
   };
 
   const typeIcons: Record<IssueType, string> = {
-    story: '📖',
-    task: '✅',
-    bug: '🐛',
-    epic: '🎯',
+    story: '📖', task: '✅', bug: '🐛', epic: '🎯',
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-4">Create Issue</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Create Issue</h2>
+          <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {/* Type + Priority row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Issue Type*</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Issue Type *</label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as IssueType })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, type: e.target.value as IssueType })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="task">{typeIcons.task} Task</option>
-                <option value="story">{typeIcons.story} Story</option>
-                <option value="bug">{typeIcons.bug} Bug</option>
-                <option value="epic">{typeIcons.epic} Epic</option>
+                {(Object.keys(typeIcons) as IssueType[]).map(t => (
+                  <option key={t} value={t}>{typeIcons[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                ))}
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1">Priority*</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Priority *</label>
               <select
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as IssuePriority })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, priority: e.target.value as IssuePriority })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="lowest">Lowest</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="highest">Highest</option>
+                {['lowest', 'low', 'medium', 'high', 'highest'].map(p => (
+                  <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                ))}
               </select>
             </div>
           </div>
 
+          {/* Title */}
           <div>
-            <label className="block text-sm font-medium mb-1">Title*</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Title *</label>
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter a brief summary..."
-              required
+              onChange={e => { setFormData({ ...formData, title: e.target.value }); setTitleError(false); }}
+              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                titleError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+              }`}
+              placeholder="Enter a brief summary…"
+              autoFocus
             />
+            {titleError && <p className="text-xs text-red-500 mt-1">Title is required</p>}
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               rows={4}
-              placeholder="Add a detailed description..."
+              placeholder="Add a detailed description…"
             />
           </div>
 
+          {/* Status + Assignee */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Status*</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status *</label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as IssueStatus })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, status: e.target.value as IssueStatus })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="backlog">Backlog</option>
                 <option value="todo">To Do</option>
@@ -161,61 +171,59 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                 <option value="done">Done</option>
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1">Assignee</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assignee</label>
               <select
                 value={formData.assigneeId}
-                onChange={(e) => setFormData({ ...formData, assigneeId: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, assigneeId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Unassigned</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.avatar} {user.name}
-                  </option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
             </div>
           </div>
 
+          {/* Labels + Hours */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Labels (comma-separated)</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Labels</label>
               <input
                 type="text"
                 value={formData.labels}
-                onChange={(e) => setFormData({ ...formData, labels: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="frontend, urgent, etc."
+                onChange={e => setFormData({ ...formData, labels: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="frontend, urgent (comma-separated)"
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1">Estimated Hours</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Estimated Hours</label>
               <input
                 type="number"
                 min="0"
                 step="0.5"
                 value={formData.estimatedHours}
-                onChange={(e) => setFormData({ ...formData, estimatedHours: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, estimatedHours: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
           </div>
 
-          <div className="flex gap-2 justify-end pt-4">
+          {/* Footer */}
+          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded-md hover:bg-gray-50"
+              onClick={handleClose}
+              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 text-sm bg-[#0052CC] text-white rounded-lg hover:bg-[#0065FF] transition-colors font-medium"
             >
               Create Issue
             </button>
