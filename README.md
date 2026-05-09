@@ -1,6 +1,6 @@
-# SprintBoard — Project Management Tool
+# SprintBoard
 
-A fully functional JIRA clone built with React 19 and TypeScript. Supports sprint planning, kanban boards, issue tracking, time logging, and team collaboration — all persisted in browser localStorage with no backend required.
+A full-featured project management tool built with React 19 and TypeScript — inspired by JIRA. Supports sprint planning, Kanban boards with drag-and-drop, role-based access control, time logging, issue dependencies, file attachments, and a real-time activity feed. No backend required — everything runs in the browser and persists via localStorage.
 
 ---
 
@@ -10,58 +10,87 @@ A fully functional JIRA clone built with React 19 and TypeScript. Supports sprin
 # Install dependencies
 npm install
 
-# Run development server
+# Start development server
 npm run dev
 
-# Build for production
+# Build for production (outputs a single self-contained HTML file)
 npm run build
 
-# Preview production build
+# Preview production build locally
 npm run preview
 ```
 
-**Default Login:**
-- Email: `admin@company.com`
-- Password: `admin123`
+**Default admin credentials**
+```
+Email:    admin@company.com
+Password: admin123
+```
 
 ---
 
 ## Features
 
 ### Issue Management
-- Create, edit, and delete issues with full detail views
-- Issue types: Story, Task, Bug, Epic
-- Priority levels: Lowest, Low, Medium, High, Highest
-- Status workflow: Backlog → To Do → In Progress → In Review → Done
-- Drag and drop between Kanban columns
-- Time estimation and work log tracking
-- Labels, comments, file attachments (base64), and issue links
+- Create issues with type (Story, Task, Bug, Epic), priority (Lowest → Highest), and status
+- Full detail view with 5 tabs: Details, Comments, Work Logs, Links, Attachments
+- Inline editing — all fields auto-save on blur
+- Labels, time estimates, and assignee tracking
+- File attachments stored as base64 in localStorage with download support
 
 ### Issue Dependencies
-- Link issues with typed relationships: blocks, blocked-by, relates-to, duplicates, duplicated-by
-- Remove links from the issue detail panel
+- Link issues with typed relationships: Blocks, Blocked By, Relates To, Duplicates, Duplicated By
+- Remove links directly from the issue detail panel
+- Duplicate link prevention built in
+
+### Kanban Board
+- Four-column workflow: To Do → In Progress → In Review → Done
+- Drag-and-drop powered by @dnd-kit with smooth DragOverlay animation
+- **Role-based drag permissions** — admins can move any card; members can only move cards assigned to them
+- Lock icon shown on cards a member cannot drag; grip handle shown on cards they can
+- Board scopes automatically to the active sprint
 
 ### Sprint Planning
-- Create sprints with name, goal, start date, and end date
+- Create sprints with name, goal, start date, and end date (Admin only)
 - Start and complete sprints (Admin only)
-- Incomplete issues automatically return to backlog on sprint close
-- Collapsible sprint sections in both Backlog and Sprints views
+- Move backlog issues into sprints with a single hover-click — no drag required
+- Remove issues from sprints back to backlog
+- Completing a sprint automatically returns all incomplete issues to the backlog
+- Done issues remain in the completed sprint as a historical record
 
 ### Time Tracking
-- Log hours against any issue with an optional description
-- View per-issue work log history with totals
-- Compare logged time against estimated hours
+- Log actual hours against any issue with an optional description
+- View per-issue work log history with timestamps and user attribution
+- Running total displayed against the original estimate
 
 ### Team Collaboration
-- Email-based invitations — invited users sign up with the invited address to join
-- Role-based permissions: Admin and Member
-- Admins can create sprints, invite members, and manage settings
-- Member profiles with assigned and completed issue counts
+- Email-based member invitations (demo mode — no email is sent; user signs up with the invited address)
+- Role assignment at invitation time; role auto-applied on signup
+- Role-based access: only admins can create sprints, invite members, and edit project settings
+- Comment threads on every issue with user attribution and timestamps
+
+### Search
+- Global search overlay (⌘K / Ctrl+K) filters issues by title, key, and description in real time
+- Click any result to open the full issue detail modal
 
 ### Activity Feed
-- Chronological log of all team actions: issue creation, status changes, assignments, comments, work logs, file attachments, and sprint events
-- Shown in the Activity tab and surfaced as notifications in the top navigation bar
-- Capped at 200 most recent entries
+- Chronological log of every team action: issue creation, status changes, assignments, comments, work logs, attachments, and sprint events
+- Notification bell in the top navigation shows the 8 most recent events
+- Full feed available in the Activity tab (up to 200 entries)
+
+### Analytics Dashboard
+- Issue counts by status and type with visual progress bars
+- Active sprint progress bar with per-status breakdown
+- Team performance summary — assigned, in-progress, and completed per member
+- Recently updated issues list
+
+### Keyboard Shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `⌘K` / `Ctrl+K` | Open search |
+| `C` | Create new issue |
+| `Esc` | Close any modal or overlay |
+| `Enter` | Submit a comment |
+| `Tab` | Navigate between form fields |
 
 ---
 
@@ -69,32 +98,38 @@ npm run preview
 
 | View | Description |
 |------|-------------|
-| Board | Kanban board with To Do, In Progress, In Review, and Done columns. Drag and drop supported. Scoped to the active sprint. |
-| Backlog | Full issue list grouped by sprint, with collapsible sections. Create issues and sprints from here. |
-| Sprints | All sprints sorted by status (active first), with per-sprint progress bars and issue breakdowns. |
-| Dashboard | Status and type distribution, active sprint progress, team performance summary, and recently updated issues. |
-| Activity | Paginated activity feed (up to 50 entries shown) with action type badges and timestamps. |
-| Team | Member cards with assigned, in-progress, and completed counts. Expandable to show assigned issues. |
-| Settings | Project details (read-only), pending invitations list, and account/logout controls. |
+| Board | Kanban board scoped to the active sprint. Drag-and-drop with role-based permissions. |
+| Backlog | All issues grouped by sprint. Move issues into sprints with a hover button. Create sprints and issues from here. |
+| Sprints | All sprints sorted by status (active first). Per-sprint progress bars, issue breakdowns, and start/complete controls. |
+| Dashboard | Status and type distribution, active sprint progress, team workload, and recently updated issues. |
+| Activity | Paginated activity feed with action-type badges and timestamps. |
+| Team | Member cards with assigned, active, and completed counts. Expandable to show assigned issues. |
+| Settings | Editable project name and description (admin). Invitation management with status tracking. Account information. |
 
 ---
 
-## Authentication
+## Authentication & Permissions
 
 - Email and password login and signup
-- Session persisted in `localStorage` under a separate auth key
-- Role assigned at signup based on pending invitation, defaulting to Member
-- Admin-only actions: invite members, create sprints, start/complete sprints
+- Session stored in `localStorage` — survives page refreshes
+- Role is assigned at signup based on a pending invitation, defaulting to Member
 
-**Default admin credentials:**
-- Email: `admin@company.com`
-- Password: `admin123`
+| Action | Admin | Member |
+|--------|-------|--------|
+| View all issues and sprints | ✓ | ✓ |
+| Create and edit issues | ✓ | ✓ |
+| Comment and log work | ✓ | ✓ |
+| Drag any card on the board | ✓ | — |
+| Drag own assigned cards | ✓ | ✓ |
+| Create and manage sprints | ✓ | — |
+| Invite team members | ✓ | — |
+| Edit project settings | ✓ | — |
 
 ---
 
 ## Data Model
 
-All state is stored in `localStorage` under the key `jira_clone_data`. The schema maps directly to the TypeScript types in `src/types.ts`:
+All state is stored in `localStorage` under the key `jira_clone_data`.
 
 | Entity | Key fields |
 |--------|-----------|
@@ -102,10 +137,8 @@ All state is stored in `localStorage` under the key `jira_clone_data`. The schem
 | User | id, name, email, role, assignedIssues, completedIssues |
 | Issue | id, key, title, type, priority, status, sprintId, assigneeId, labels, estimatedHours, comments, workLogs, links, attachments |
 | Sprint | id, name, goal, startDate, endDate, status |
-| Invitation | id, email, role, status (pending/accepted/rejected) |
+| Invitation | id, email, role, status (pending / accepted / rejected) |
 | Activity | id, type, userId, issueId, sprintId, details, createdAt |
-
-No backend is required. All data survives page refreshes.
 
 ---
 
@@ -115,11 +148,12 @@ No backend is required. All data survives page refreshes.
 |---------|---------|---------|
 | react | 19.2.3 | UI framework |
 | react-dom | 19.2.3 | DOM renderer |
-| typescript | 5.9.3 | Type safety |
+| typescript | 5.9.3 | Static type safety |
 | vite | 7.2.4 | Build tool and dev server |
+| vite-plugin-singlefile | 2.3.0 | Bundles everything into one HTML file |
 | tailwindcss | 4.1.17 | Utility-first CSS |
-| @dnd-kit/core | 6.3.1 | Drag and drop |
-| @dnd-kit/sortable | 10.0.0 | Sortable drag and drop |
+| @dnd-kit/core | 6.3.1 | Drag-and-drop primitives |
+| @dnd-kit/sortable | 10.0.0 | Sortable drag-and-drop |
 | lucide-react | 1.8.0 | Icon library |
 | recharts | 3.8.1 | Chart components |
 | date-fns | 4.1.0 | Date formatting |
@@ -131,86 +165,113 @@ No backend is required. All data survives page refreshes.
 
 ```
 src/
-├── components/
-│   ├── views/
-│   │   ├── BoardView.tsx          # Kanban board with drag and drop
-│   │   ├── BacklogView.tsx        # Sprint and backlog management
-│   │   ├── SprintsView.tsx        # Sprint overview with progress
-│   │   ├── DashboardView.tsx      # Analytics and metrics
-│   │   ├── ActivityView.tsx       # Activity feed
-│   │   ├── TeamView.tsx           # Member profiles
-│   │   └── SettingsView.tsx       # Project and account settings
-│   ├── ModernDashboard.tsx        # Top nav, tab bar, modal orchestration
-│   ├── Auth.tsx                   # Login and signup forms
-│   ├── CreateIssueModal.tsx       # New issue form
-│   ├── CreateSprintModal.tsx      # New sprint form
-│   ├── InviteMemberModal.tsx      # Invite by email form
-│   ├── IssueCard.tsx              # Draggable kanban card
-│   ├── IssueDetailModal.tsx       # Issue detail with tabbed panels
-│   └── DroppableColumn.tsx        # Droppable kanban column
-├── context/
-│   └── AppContext.tsx             # Global state via React Context
+├── types.ts                        # All TypeScript interfaces and union types
+├── App.tsx                         # Root component — auth gate
+├── main.tsx                        # ReactDOM entry point
+├── index.css                       # Tailwind import
+│
 ├── services/
-│   └── database.ts                # localStorage read/write and activity logging
-├── types.ts                       # All TypeScript interfaces and union types
+│   └── database.ts                 # All localStorage reads/writes and activity logging
+│
+├── context/
+│   └── AppContext.tsx              # Global state and all action functions via useApp()
+│
 ├── utils/
-│   └── cn.ts                      # clsx + tailwind-merge helper
-└── App.tsx                        # Root component and auth gate
+│   └── cn.ts                       # clsx + tailwind-merge helper
+│
+└── components/
+    ├── Auth.tsx                    # Login and signup forms
+    ├── ModernDashboard.tsx         # Top nav, tab bar, search overlay, all modal orchestration
+    ├── CreateIssueModal.tsx        # New issue form with validation
+    ├── CreateSprintModal.tsx       # New sprint form
+    ├── InviteMemberModal.tsx       # Invite member by email
+    ├── IssueCard.tsx               # Draggable Kanban card with permission-aware drag handle
+    ├── IssueDetailModal.tsx        # Full issue editor — 5 tabbed panels
+    ├── DroppableColumn.tsx         # Kanban column drop target
+    └── views/
+        ├── BoardView.tsx           # Kanban board with DnD and permission checks
+        ├── BacklogView.tsx         # Sprint planning — move issues in/out of sprints
+        ├── SprintsView.tsx         # Sprint overview with progress bars
+        ├── DashboardView.tsx       # Analytics and metrics
+        ├── ActivityView.tsx        # Activity feed
+        ├── TeamView.tsx            # Member profiles and issue lists
+        └── SettingsView.tsx        # Project settings and invitation management
 ```
 
 ---
 
-## Usage Guide
+## Architecture
 
-**Creating an issue**
-1. Click the blue "Create" button in the top navigation and select "Create Issue", or use the button inside the Backlog view.
-2. Fill in the type, priority, title, description, assignee, labels, and estimated hours.
-3. Click "Create Issue".
+```
+Browser localStorage
+       │
+       ▼
+database.ts          — service layer: all reads, writes, and activity logging
+       │
+       ▼
+AppContext.tsx        — React Context: exposes typed state and action functions
+       │
+       ▼
+Components           — read state via useApp(), dispatch actions
+```
 
-**Starting a sprint**
-1. Go to the Backlog view.
-2. Click "Create Sprint" (Admin only) and fill in the sprint name, goal, and dates.
-3. Once issues are added, click "Start Sprint" on the sprint row.
+Every action follows the same pattern:
+1. Component calls a context action (e.g. `updateIssue`)
+2. Context reads fresh data from `database.ts` to avoid stale closures
+3. `database.ts` applies the mutation, logs an activity entry, and saves to localStorage
+4. Context calls `refreshData()` which triggers a full React re-render
 
-**Completing a sprint**
-1. Go to the Backlog or Sprints view.
-2. Click "Complete Sprint" on the active sprint.
-3. Done issues remain in the completed sprint; all other issues return to the backlog.
+---
 
-**Inviting a team member**
-1. Log in as an admin and go to Settings.
-2. Click "Invite Member", enter the email address, and select a role.
-3. The invited user signs up using that email address. Their role is assigned automatically on signup.
+## Deployment
 
-**Logging work time**
-1. Open any issue and go to the "Work Logs" tab.
-2. Enter hours and an optional description, then click "Log".
+The `vite-plugin-singlefile` plugin inlines all JavaScript and CSS into a single `dist/index.html` file (~300 KB). No server, CDN, or routing configuration needed.
 
-**Linking issues**
-1. Open an issue and go to the "Links" tab.
-2. Select a relationship type and the target issue, then click "Link".
+```bash
+npm run build
+# → dist/index.html  (fully self-contained)
+```
+
+**Deploy options**
+- **Netlify Drop** — drag the `dist/` folder to netlify.com/drop
+- **GitHub Pages** — commit `dist/index.html` and enable Pages on the repository
+- **Vercel** — `vercel --prod` from the project root
+- **Anywhere** — it is one HTML file; host it on any static server
 
 ---
 
 ## Build Info
 
-- **Build size:** 289 KB (gzipped: 86 KB)
-- **Build time:** ~1.6 s
-- **TypeScript coverage:** 100%
+| Metric | Value |
+|--------|-------|
+| Build size | ~300 KB |
+| Gzipped | ~86 KB |
+| Build time | ~1.6 s |
+| TypeScript coverage | 100% |
+| Backend required | None |
+
+---
+
+## Known Limitations
+
+- **No real email delivery** — invitations are stored in localStorage only. Invited users must sign up manually using the invited email address.
+- **localStorage cap** — browsers allow ~5 MB per origin. File attachments are stored as base64 which is ~33% larger than the original file. Large attachments may approach this limit.
+- **Single project** — the app manages one project per localStorage instance.
+- **No real-time sync** — multiple browser tabs or users do not share live updates; each session reads independently from localStorage.
 
 ---
 
 ## Future Enhancements
 
-- Real backend integration (Firebase or Supabase)
-- WebSocket-based real-time collaboration
-- Export to CSV or PDF
-- Full-text search and advanced filtering
-- Keyboard shortcuts
+- Real backend integration (Supabase or Firebase) for multi-user real-time collaboration
+- WebSocket-based live updates across browser tabs
+- Full-text search with advanced filtering and sorting
 - Dark mode
+- Export issues to CSV
+- Email delivery via a serverless function
 
 ---
 
 ## License
 
-MIT License — free to use as a learning reference or as a starting point for your own project management tool.
+MIT — free to use as a learning reference or starting point for your own project management tool.
