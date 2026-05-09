@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { IssueDetailModal } from '../IssueDetailModal';
 import { Issue } from '../../types';
+import {
+  BookOpen,
+  CheckSquare,
+  Bug,
+  Target,
+  FileText,
+} from 'lucide-react';
 
 export const DashboardView: React.FC = () => {
   const { issues, sprints, users } = useApp();
@@ -33,7 +40,12 @@ export const DashboardView: React.FC = () => {
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 8);
 
-  const typeIcons: Record<string, string> = { story: '📖', task: '✅', bug: '🐛', epic: '🎯' };
+  const typeIcons: Record<string, React.ReactNode> = {
+    story: <BookOpen className="w-4 h-4 text-blue-600" />,
+    task: <CheckSquare className="w-4 h-4 text-green-600" />,
+    bug: <Bug className="w-4 h-4 text-red-600" />,
+    epic: <Target className="w-4 h-4 text-purple-600" />,
+  };
 
   const statCards = [
     { label: 'Backlog', count: byStatus.backlog, color: 'text-gray-600', bg: 'bg-gray-50' },
@@ -66,7 +78,9 @@ export const DashboardView: React.FC = () => {
             {Object.entries(byType).map(([type, count]) => (
               <div key={type} className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <span>{typeIcons[type]}</span>
+                  <span className="flex items-center">
+                    {typeIcons[type] ?? <FileText className="w-4 h-4 text-gray-500" />}
+                  </span>
                   <span className="capitalize text-gray-700">{type}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -166,15 +180,18 @@ export const DashboardView: React.FC = () => {
                 onClick={() => setSelectedIssue(issue)}
                 className="px-4 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center gap-3 group"
               >
-                <span className="text-sm flex-shrink-0">{typeIcons[issue.type] ?? '📋'}</span>
+                <span className="flex items-center flex-shrink-0">
+                  {typeIcons[issue.type] ?? (
+                    <FileText className="w-4 h-4 text-gray-500" />
+                  )}
+                </span>
                 <span className="text-xs text-gray-400 font-medium w-20 flex-shrink-0">{issue.key}</span>
                 <span className="text-sm text-gray-800 flex-1 truncate group-hover:text-[#0052CC]">{issue.title}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                  issue.status === 'done' ? 'bg-green-100 text-green-700'
-                  : issue.status === 'in-progress' ? 'bg-blue-100 text-blue-700'
-                  : issue.status === 'in-review' ? 'bg-purple-100 text-purple-700'
-                  : 'bg-gray-100 text-gray-600'
-                }`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${issue.status === 'done' ? 'bg-green-100 text-green-700'
+                    : issue.status === 'in-progress' ? 'bg-blue-100 text-blue-700'
+                      : issue.status === 'in-review' ? 'bg-purple-100 text-purple-700'
+                        : 'bg-gray-100 text-gray-600'
+                  }`}>
                   {issue.status}
                 </span>
                 <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:block">

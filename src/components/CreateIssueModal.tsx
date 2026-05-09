@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { IssueType, IssuePriority, IssueStatus } from '../types';
-import { X } from 'lucide-react';
+import {
+  X,
+  BookOpen,
+  CheckSquare,
+  Bug,
+  Trophy,
+} from 'lucide-react';
 
 interface CreateIssueModalProps {
   isOpen: boolean;
@@ -82,8 +88,11 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({ isOpen, onCl
     onClose();
   };
 
-  const typeIcons: Record<IssueType, string> = {
-    story: '📖', task: '✅', bug: '🐛', epic: '🎯',
+  const typeIcons: Record<IssueType, React.ReactNode> = {
+    story: <BookOpen className="w-4 h-4 text-blue-600" />,
+    task: <CheckSquare className="w-4 h-4 text-green-600" />,
+    bug: <Bug className="w-4 h-4 text-red-600" />,
+    epic: <Trophy className="w-4 h-4 text-purple-600" />,
   };
 
   return (
@@ -109,7 +118,9 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({ isOpen, onCl
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {(Object.keys(typeIcons) as IssueType[]).map(t => (
-                  <option key={t} value={t}>{typeIcons[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                  <option key={t} value={t}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </option>
                 ))}
               </select>
             </div>
@@ -134,9 +145,8 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({ isOpen, onCl
               type="text"
               value={formData.title}
               onChange={e => { setFormData({ ...formData, title: e.target.value }); setTitleError(false); }}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                titleError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${titleError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
               placeholder="Enter a brief summary…"
               autoFocus
             />

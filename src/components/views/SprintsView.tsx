@@ -2,7 +2,19 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { IssueDetailModal } from '../IssueDetailModal';
 import { Issue } from '../../types';
-import { Calendar, Target, CheckCircle2, Clock, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Calendar,
+  Target,
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  BookOpen,
+  CheckSquare,
+  Bug,
+  Trophy,
+  FileText,
+} from 'lucide-react';
 
 export const SprintsView: React.FC = () => {
   const { sprints, issues, currentUser, startSprint, completeSprint } = useApp();
@@ -22,8 +34,11 @@ export const SprintsView: React.FC = () => {
   const statusOrder = { active: 0, planned: 1, completed: 2 };
   const sortedSprints = [...sprints].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
 
-  const issueTypeIcons: Record<string, string> = {
-    story: '📖', task: '✅', bug: '🐛', epic: '🎯',
+  const issueTypeIcons: Record<string, React.ReactNode> = {
+    story: <BookOpen className="w-4 h-4 text-blue-600" />,
+    task: <CheckSquare className="w-4 h-4 text-green-600" />,
+    bug: <Bug className="w-4 h-4 text-red-600" />,
+    epic: <Trophy className="w-4 h-4 text-purple-600" />,
   };
 
   const statusBadge: Record<string, string> = {
@@ -181,7 +196,11 @@ export const SprintsView: React.FC = () => {
                           onClick={() => setSelectedIssue(issue)}
                           className="px-5 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center gap-3 group"
                         >
-                          <span className="text-sm flex-shrink-0">{issueTypeIcons[issue.type] ?? '📋'}</span>
+                          <span className="flex items-center flex-shrink-0">
+                            {issueTypeIcons[issue.type] ?? (
+                              <FileText className="w-4 h-4 text-gray-500" />
+                            )}
+                          </span>
                           <span className="text-xs text-gray-400 font-medium w-20 flex-shrink-0">{issue.key}</span>
                           <span className="text-sm text-gray-800 flex-1 truncate group-hover:text-[#0052CC]">{issue.title}</span>
                           <div className="flex items-center gap-2 flex-shrink-0">
@@ -189,12 +208,11 @@ export const SprintsView: React.FC = () => {
                               <CheckCircle2 className="w-4 h-4 text-green-500" />
                             )}
                             <div className={`w-2 h-2 rounded-full ${issueStatusColors[issue.status] ?? 'bg-gray-200'}`} title={issue.status} />
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              issue.status === 'done' ? 'bg-green-100 text-green-700'
-                              : issue.status === 'in-progress' ? 'bg-blue-100 text-blue-700'
-                              : issue.status === 'in-review' ? 'bg-purple-100 text-purple-700'
-                              : 'bg-gray-100 text-gray-600'
-                            }`}>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${issue.status === 'done' ? 'bg-green-100 text-green-700'
+                                : issue.status === 'in-progress' ? 'bg-blue-100 text-blue-700'
+                                  : issue.status === 'in-review' ? 'bg-purple-100 text-purple-700'
+                                    : 'bg-gray-100 text-gray-600'
+                              }`}>
                               {issue.status}
                             </span>
                           </div>

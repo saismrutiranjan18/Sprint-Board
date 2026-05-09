@@ -4,7 +4,7 @@ import { CreateSprintModal } from '../CreateSprintModal';
 import { CreateIssueModal } from '../CreateIssueModal';
 import { IssueDetailModal } from '../IssueDetailModal';
 import { Issue, IssueStatus, IssueType, IssuePriority, SprintStatus } from '../../types';
-import { Plus, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, ArrowRight, BookOpen, CheckSquare, Bug, Target } from 'lucide-react';
 
 export const BacklogView: React.FC = () => {
   const {
@@ -61,8 +61,11 @@ export const BacklogView: React.FC = () => {
     completed: 'bg-gray-100 text-gray-600',
   };
 
-  const issueTypeIcons: Record<IssueType, string> = {
-    story: '📖', task: '✅', bug: '🐛', epic: '🎯',
+  const issueTypeIcons: Record<IssueType, React.ReactNode> = {
+    story: <BookOpen className="w-4 h-4 text-blue-600" />,
+    task: <CheckSquare className="w-4 h-4 text-green-600" />,
+    bug: <Bug className="w-4 h-4 text-red-600" />,
+    epic: <Target className="w-4 h-4 text-purple-600" />,
   };
 
   const priorityDot: Record<IssuePriority, string> = {
@@ -273,7 +276,7 @@ export const BacklogView: React.FC = () => {
 
 interface SprintIssueRowProps {
   issue: Issue;
-  typeIcon: string;
+  typeIcon: React.ReactNode;
   priorityDot: string;
   statusBadge: string;
   isAdmin: boolean;
@@ -325,7 +328,7 @@ const SprintIssueRow: React.FC<SprintIssueRowProps> = ({
 
 interface BacklogIssueRowProps {
   issue: Issue;
-  typeIcon: string;
+  typeIcon: React.ReactNode;
   priorityDot: string;
   openSprints: Array<{ id: string; name: string; status: string }>;
   activeSprint: { id: string; name: string } | undefined;
@@ -406,11 +409,10 @@ const BacklogIssueRow: React.FC<BacklogIssueRowProps> = ({
                       className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
                     >
                       <span className="truncate">{sprint.name}</span>
-                      <span className={`text-xs ml-2 px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                        sprint.status === 'active'
+                      <span className={`text-xs ml-2 px-1.5 py-0.5 rounded-full flex-shrink-0 ${sprint.status === 'active'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-yellow-100 text-yellow-700'
-                      }`}>
+                        }`}>
                         {sprint.status}
                       </span>
                     </button>
